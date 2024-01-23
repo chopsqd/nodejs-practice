@@ -1,7 +1,11 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const path = require('path')
+const csurf = require('csurf')
 const exphbs = require('express-handlebars')
+const session = require('express-session')
+const MongoStore = require('connect-mongodb-session')(session)
+const flash = require('connect-flash')
 const Handlebars = require('handlebars')
 const {allowInsecurePrototypeAccess} = require('@handlebars/allow-prototype-access')
 const homeRoutes = require('./routes/home')
@@ -9,7 +13,9 @@ const cartRoutes = require('./routes/cart')
 const addRoutes = require('./routes/add')
 const coursesRoutes = require('./routes/courses')
 const ordersRoutes = require('./routes/orders')
-const User = require('./models/User')
+const authRoutes = require('./routes/auth')
+const varMiddleware = require('./middleware/variables')
+const userMiddleware = require('./middleware/user')
 require('dotenv').config()
 
 const app = express()
@@ -19,46 +25,38 @@ const hbs = exphbs.create({
     extname: 'hbs',
     handlebars: allowInsecurePrototypeAccess(Handlebars)
 })
+const store = new MongoStore({
+    collection: 'sessions',
+    uri: process.env.MONGO_URI
+})
 
 app.engine('hbs', hbs.engine)
 app.set('view engine', 'hbs')
 app.set('views', 'views')
 
-app.use(async (req, res, next) => {
-    try {
-        const user = await User.findById('65a4f5a3bf9f056dc7b89b46')
-        req.user = user
-
-        next()
-    } catch (error) {
-        console.log(error)
-    }
-})
-
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(express.urlencoded({extended: true}))
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store
+}))
+app.use(csurf())
+app.use(flash())
+app.use(varMiddleware)
+app.use(userMiddleware)
+
 app.use('/', homeRoutes)
 app.use('/add', addRoutes)
 app.use('/cart', cartRoutes)
 app.use('/courses', coursesRoutes)
 app.use('/orders', ordersRoutes)
+app.use('/auth', authRoutes)
 
 async function start() {
     try {
         await mongoose.connect(process.env.MONGO_URI)
-
-        const candidate = await User.findOne()
-        if(!candidate) {
-            const user = new User({
-                email: 't@mail.com',
-                name: 'Test',
-                cart: {
-                    courses: []
-                }
-            })
-
-            await user.save()
-        }
 
         app.listen(PORT, () => {
             console.log(`Server started on port: ${PORT}`)

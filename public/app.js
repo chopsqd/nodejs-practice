@@ -29,9 +29,13 @@ if($cart) {
     $cart.addEventListener('click', event => {
         if(event.target.classList.contains('js-remove')) {
             const id = event.target.dataset.id
+            const csrf = event.target.dataset.csrf
 
             fetch(`/cart/remove/${id}`, {
                 method: 'DELETE',
+                headers: {
+                    'X-XSRF-TOKEN': csrf
+                }
             })
                 .then(res => res.json())
                 .then(cart => {
@@ -57,3 +61,5 @@ if($cart) {
         }
     })
 }
+
+M.Tabs.init(document.querySelectorAll('.tabs'))

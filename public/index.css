@@ -39,3 +39,20 @@
 .course-form {
     margin-bottom: 1rem;
 }
+
+.auth {
+    margin-top: 10rem;
+}
+
+.center {
+    text-align: center;
+}
+
+.alert {
+    padding: .5rem 1rem;
+    border-radius: 5px;
+    text-align: center;
+    background: rgba(255, 0, 0, .2);
+    color: red;
+    font-weight: bold;
+}
