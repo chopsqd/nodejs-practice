@@ -1,6 +1,7 @@
 const {Router} = require('express')
 const Course = require('../models/Course')
 const authMiddleware = require('../middleware/auth')
+const isOwner = require('../utils/isOwner')
 const router = Router()
 
 router.get('/', async (req, res) => {
@@ -11,6 +12,7 @@ router.get('/', async (req, res) => {
         res.render('courses', {
             title: 'Курсы',
             isCourses: true,
+            userId: req.user ? req.user._id.toString() : null,
             courses
         })
     } catch (error) {
@@ -39,6 +41,9 @@ router.get('/:id/edit', authMiddleware, async (req, res) => {
         }
 
         const course = await Course.findById(req.params.id)
+        if(!isOwner(course, req)) {
+            return res.redirect('/courses')
+        }
 
         res.render('course-edit', {
             title: `Редактировать ${course.title}`,
@@ -51,8 +56,14 @@ router.get('/:id/edit', authMiddleware, async (req, res) => {
 
 router.post('/edit', authMiddleware, async (req, res) => {
     try {
-        const {id, ...update} = req.body
-        await Course.findByIdAndUpdate(id, update)
+        const course = await Course.findById(req.body.id)
+
+        if(!isOwner(course, req)) {
+            return res.redirect('/courses')
+        }
+
+        Object.assign(course, req.body)
+        await course.save()
 
         res.redirect('/courses')
     } catch (error) {
@@ -62,7 +73,10 @@ router.post('/edit', authMiddleware, async (req, res) => {
 
 router.post('/remove', authMiddleware, async (req, res) => {
     try {
-        await Course.deleteOne({_id: req.body.id})
+        await Course.deleteOne({
+            _id: req.body.id,
+            userId: req.user._id
+        })
 
         res.redirect('/courses')
     } catch (error) {
