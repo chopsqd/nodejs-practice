@@ -56,3 +56,8 @@
     color: red;
     font-weight: bold;
 }
+
+.avatar {
+    max-width: 300px;
+    height: auto;
+}

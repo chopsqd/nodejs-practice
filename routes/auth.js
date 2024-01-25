@@ -1,8 +1,10 @@
 const {Router} = require('express')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
+const {validationResult} = require('express-validator/check')
 const User = require("../models/User");
 const transporter = require("../utils/transporter");
+const {registerValidators} = require("../utils/validators");
 const regEmail = require("../emails/registration");
 const resetEmail = require("../emails/reset");
 const router = Router()
@@ -86,19 +88,14 @@ router.post('/login', async (req, res) => {
     }
 })
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerValidators, async (req, res) => {
     try {
-        const {email, password, confirm, name} = req.body
+        const {email, password, name} = req.body
 
-        if(password !== confirm) {
-            req.flash('registerError', 'Пароли не совпадают')
-            return res.redirect('/auth#register')
-        }
-
-        const candidate = await User.findOne({email})
-        if(candidate) {
-            req.flash('registerError', 'Пользователь с таким email уже существует')
-            return res.redirect('/auth#register')
+        const errors = validationResult(req)
+        if(!errors.isEmpty()) {
+            req.flash('registerError', errors.array()[0].msg)
+            return res.status(422).redirect('/auth/login#register')
         }
 
         const hashPassword = await bcrypt.hash(password, 10)
@@ -107,10 +104,9 @@ router.post('/register', async (req, res) => {
             email, name, password: hashPassword, cart: {courses: []}
         })
         await user.save()
+        await transporter.sendMail(regEmail(email))
 
         res.redirect('/auth#login')
-
-        await transporter.sendMail(regEmail(email))
     } catch (error) {
         console.log(error)
     }
